@@ -1,0 +1,43 @@
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Authentication service
+  auth-service:
+    build: ./services/auth-service
+
+    env_file:
+      - ./services/auth-service/.env
+
+    environment:
+      PORT: 3001
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      DB_STORAGE: /app/data/database.sqlite
+
+    ports:
+      - "3001:3001"
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    volumes:
+      - auth_data:/app/data
+
+volumes:
+  auth_data:

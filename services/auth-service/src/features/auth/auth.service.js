@@ -45,7 +45,15 @@ class AuthService {
             await transaction.commit();
 
             return {
-                user
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    vendorStatus: user.vendorStatus,
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt
+                }
             };
         } catch (error) {
             await transaction.rollback();

@@ -8,7 +8,7 @@ const connectRabbitMQ = async () => {
         process.env.RABBITMQ_URL || "amqp://localhost"
     );
 
-    channel = await connection.createChannel();
+    channel = await connection.createConfirmChannel();
 
     await channel.assertExchange(
         "shopforge",

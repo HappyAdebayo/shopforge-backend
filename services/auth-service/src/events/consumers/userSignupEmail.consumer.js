@@ -1,9 +1,14 @@
-// Hardcoded Resend API Key as requested (can be updated later or via env var)
-const HARDCODED_RESEND_API_KEY = "re_hardcoded_shopforge_key_123456789";
+import configureRetryQueues from "../../config/retryQueues.js";
+import retryMessage from "../../utils/retryMessage.js";
+
 
 const sendWelcomeEmailViaResend = async ({ email, name }) => {
-    const apiKey = process.env.RESEND_API_KEY || HARDCODED_RESEND_API_KEY;
-
+    const apiKey = process.env.RESEND_API_KEY ;
+    
+    if (!apiKey) {
+        throw new Error("RESEND_API_KEY is not configured");
+    }
+    
     const emailPayload = {
         from: process.env.RESEND_FROM_EMAIL || "ShopForge <onboarding@resend.dev>",
         to: [email],
@@ -46,8 +51,14 @@ const sendWelcomeEmailViaResend = async ({ email, name }) => {
 
     const data = await response.json().catch(() => null);
 
-    if (!response.ok) {
-        throw new Error(`Resend API Error (${response.status}): ${JSON.stringify(data)}`);
+   if (!response.ok) {
+        const error = new Error(
+            `Resend API Error (${response.status}): ${JSON.stringify(data)}`
+        );
+
+        error.statusCode = response.status;
+
+        throw error;
     }
 
     return data;
@@ -61,6 +72,8 @@ const userSignupEmailConsumer = async (channel) => {
                 durable: true
             }
         );
+        const { retryQueue, deadLetterQueue } =
+    await configureRetryQueues(channel, queue.queue);
 
         await channel.bindQueue(
             queue.queue,
@@ -88,10 +101,29 @@ const userSignupEmailConsumer = async (channel) => {
 
                     channel.ack(message);
                 } catch (error) {
-                    console.error("[Email Queue Worker] Error sending signup email via Resend:", error.message);
-                    // Acknowledge message to prevent infinite retry loop on invalid API keys / test keys
-                    channel.ack(message);
-                }
+                        console.error(
+                            "[Email Queue Worker] Error sending signup email:",
+                            error.message
+                        );
+
+                        const status = error.statusCode;
+
+                        const permanent =
+                            status === 400 ||
+                            status === 401 ||
+                            status === 403 ||
+                            status === 404 ||
+                            status === 422;
+
+                        await retryMessage({
+                            channel,
+                            message,
+                            retryQueue,
+                            deadLetterQueue,
+                            error,
+                            permanent
+                        });
+                    }
             }
         );
     } catch (error) {

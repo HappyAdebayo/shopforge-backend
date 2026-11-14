@@ -1,4 +1,6 @@
 import User from "../../features/auth/auth.model.js";
+import retryMessage from "../../utils/retryMessage.js";
+import configureRetryQueues from "../../config/retryQueues.js";
 
 const vendorApplicationApproved = async (channel) => {
 
@@ -8,6 +10,8 @@ const vendorApplicationApproved = async (channel) => {
             durable: true
         }
     );
+    const { retryQueue, deadLetterQueue } =
+    await configureRetryQueues(channel, queue.queue);
 
     await channel.bindQueue(
         queue.queue,
@@ -37,15 +41,16 @@ const vendorApplicationApproved = async (channel) => {
                 );
 
                 if (!user) {
-                    console.error(
-                        `User ${data.userId} not found`
-                    );
+                    const error = new Error(`User ${data.userId} not found`);
 
-                    channel.nack(
+                    await retryMessage({
+                        channel,
                         message,
-                        false,
-                        false
-                    );
+                        retryQueue,
+                        deadLetterQueue,
+                        error,
+                        permanent: true
+                    });
 
                     return;
                 }
@@ -62,18 +67,20 @@ const vendorApplicationApproved = async (channel) => {
                 );
 
             } catch (error) {
+                    console.error(
+                        "Error processing VendorApplicationApproved:",
+                        error
+                    );
 
-                console.error(
-                    "Error processing VendorApplicationApproved:",
-                    error
-                );
-
-                channel.nack(
-                    message,
-                    false,
-                    false
-                );
-            }
+                    await retryMessage({
+                        channel,
+                        message,
+                        retryQueue,
+                        deadLetterQueue,
+                        error,
+                        permanent: error.name === "SyntaxError"
+                    });
+                }
         }
     );
 };
