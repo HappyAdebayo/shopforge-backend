@@ -1,18 +1,16 @@
+
 import AuthService from "./auth.service.js";
 import AuthValidation from "./auth.validation.js";
+import { HttpError } from "../../../../../packages/common/src/index.js";
 
 class AuthController {
 
-    async signup(req, res) {
-
+    async signup(req, res, next) {
         try {
-
             const { error } = AuthValidation.signup(req.body);
 
             if (error) {
-                return res.status(400).json({
-                    message: error.details[0].message
-                });
+                throw new HttpError(400, error.details[0].message);
             }
 
             const result = await AuthService.signup(req.body);
@@ -23,24 +21,16 @@ class AuthController {
             });
 
         } catch (error) {
-
-            return res.status(400).json({
-                message: error.message
-            });
-
+            next(error);
         }
     }
 
-    async login(req, res) {
-
+    async login(req, res, next) {
         try {
-
             const { error } = AuthValidation.login(req.body);
 
             if (error) {
-                return res.status(400).json({
-                    message: error.details[0].message
-                });
+                throw new HttpError(400, error.details[0].message);
             }
 
             const result = await AuthService.login(req.body);
@@ -48,18 +38,12 @@ class AuthController {
             return res.status(200).json(result);
 
         } catch (error) {
-
-            return res.status(401).json({
-                message: error.message
-            });
-
+            next(error);
         }
     }
 
-    async refresh(req, res) {
-
+    async refresh(req, res, next) {
         try {
-
             const { refreshToken } = req.body;
 
             const result = await AuthService.refresh(refreshToken);
@@ -70,39 +54,35 @@ class AuthController {
             });
 
         } catch (error) {
-
-            return res.status(401).json({
-                message: error.message
-            });
-
+            next(error);
         }
     }
 
-    async getUserById(req, res) {
+    async getUserById(req, res, next) {
         try {
             const user = await AuthService.getUserById(req.params.id);
+
             return res.status(200).json({
                 message: "User retrieved successfully",
                 data: user
             });
+
         } catch (error) {
-            return res.status(404).json({
-                message: error.message
-            });
+            next(error);
         }
     }
 
-    async getAdminUsers(req, res) {
+    async getAdminUsers(req, res, next) {
         try {
             const admins = await AuthService.getAdminUsers();
+
             return res.status(200).json({
                 message: "Admin users retrieved successfully",
                 data: admins
             });
+
         } catch (error) {
-            return res.status(500).json({
-                message: error.message
-            });
+            next(error);
         }
     }
 }

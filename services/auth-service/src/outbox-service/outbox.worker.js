@@ -1,8 +1,9 @@
+
 import OutboxEvent from "./outbox.model.js";
 import { publishEvent } from "../config/rabbitmq.js";
+import logger from "../config/logger.js";
 
 const processOutboxEvents = async () => {
-
     const events = await OutboxEvent.findAll({
         where: {
             status: "pending"
@@ -13,9 +14,7 @@ const processOutboxEvents = async () => {
     });
 
     for (const event of events) {
-
         try {
-
             await publishEvent(
                 event.eventType,
                 JSON.parse(event.payload)
@@ -26,17 +25,23 @@ const processOutboxEvents = async () => {
 
             await event.save();
 
-            console.log(
-                `[Auth Outbox] Event ${event.id} (${event.eventType}) published successfully`
+            logger.info(
+                {
+                    eventId: event.id,
+                    eventType: event.eventType
+                },
+                "Outbox event published successfully"
             );
 
         } catch (error) {
-
-            console.error(
-                `[Auth Outbox] Failed to publish event ${event.id}:`,
-                error.message
+            logger.error(
+                {
+                    err: error,
+                    eventId: event.id,
+                    eventType: event.eventType
+                },
+                "Failed to publish outbox event"
             );
-
         }
     }
 };

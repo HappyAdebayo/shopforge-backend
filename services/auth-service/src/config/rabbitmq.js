@@ -1,9 +1,10 @@
+
 import amqp from "amqplib";
+import logger from "./logger.js";
 
 let channel;
 
 const connectRabbitMQ = async () => {
-
     const connection = await amqp.connect(
         process.env.RABBITMQ_URL || "amqp://localhost"
     );
@@ -18,13 +19,12 @@ const connectRabbitMQ = async () => {
         }
     );
 
-    console.log("Auth RabbitMQ connected");
+    logger.info("Auth RabbitMQ connected");
 
     return channel;
 };
 
 const publishEvent = async (event, data) => {
-
     if (!channel) {
         throw new Error("RabbitMQ channel is not connected in auth-service");
     }
@@ -37,6 +37,8 @@ const publishEvent = async (event, data) => {
             persistent: true
         }
     );
+
+    logger.debug({ event }, "RabbitMQ event published");
 };
 
 export {

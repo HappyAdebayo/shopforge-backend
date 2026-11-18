@@ -10,12 +10,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
+# Install shared package dependencies
+COPY packages/common/package*.json ./packages/common/
 
-# Compile native dependencies inside this container
-RUN npm_config_build_from_source=true npm ci --omit=dev
+WORKDIR /app/packages/common
+RUN npm ci --omit=dev
 
-COPY . .
+# Install Auth Service dependencies
+WORKDIR /app
+COPY services/auth-service/package*.json ./services/auth-service/
+
+WORKDIR /app/services/auth-service
+RUN npm_config_build_from_source=true npm_config_nodedir=/usr/local npm ci --omit=dev --foreground-scripts
+
+# Copy source files, preserving the directory structure
+WORKDIR /app
+COPY packages/common/src ./packages/common/src
+COPY services/auth-service/ ./services/auth-service/
+
+# Run Auth Service from its own directory
+WORKDIR /app/services/auth-service
 
 EXPOSE 3001
 

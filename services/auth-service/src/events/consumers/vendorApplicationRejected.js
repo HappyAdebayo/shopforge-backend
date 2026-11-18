@@ -1,7 +1,8 @@
+
 import User from "../../features/auth/auth.model.js";
+import logger from "../../config/logger.js";
 
 const vendorApplicationRejected = async (channel) => {
-
     const queue = await channel.assertQueue(
         "auth-vendor-rejected",
         {
@@ -15,37 +16,35 @@ const vendorApplicationRejected = async (channel) => {
         "VendorApplicationRejected"
     );
 
+    logger.info(
+        { queue: queue.queue },
+        "Vendor rejection consumer registered"
+    );
+
     channel.consume(
         queue.queue,
         async (message) => {
-
             if (!message) return;
 
             try {
-
                 const data = JSON.parse(
                     message.content.toString()
                 );
 
-                console.log(
-                    "Vendor application rejected:",
-                    data
+                logger.info(
+                    { userId: data.userId },
+                    "Vendor application rejected event received"
                 );
 
-                const user = await User.findByPk(
-                    data.userId
-                );
+                const user = await User.findByPk(data.userId);
 
                 if (!user) {
-                    console.error(
-                        `User ${data.userId} not found`
+                    logger.error(
+                        { userId: data.userId },
+                        "User not found while processing vendor rejection"
                     );
 
-                    channel.nack(
-                        message,
-                        false,
-                        false
-                    );
+                    channel.nack(message, false, false);
 
                     return;
                 }
@@ -57,22 +56,18 @@ const vendorApplicationRejected = async (channel) => {
 
                 channel.ack(message);
 
-                console.log(
-                    `User ${data.userId} vendor application rejected`
+                logger.info(
+                    { userId: data.userId },
+                    "User vendor application rejected"
                 );
 
             } catch (error) {
-
-                console.error(
-                    "Error processing VendorApplicationRejected:",
-                    error
+                logger.error(
+                    { err: error },
+                    "Error processing VendorApplicationRejected"
                 );
 
-                channel.nack(
-                    message,
-                    false,
-                    false
-                );
+                channel.nack(message, false, false);
             }
         }
     );

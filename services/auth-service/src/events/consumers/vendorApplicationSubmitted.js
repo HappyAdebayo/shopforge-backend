@@ -1,7 +1,8 @@
+
 import User from "../../features/auth/auth.model.js";
+import logger from "../../config/logger.js";
 
 const vendorApplicationSubmitted = async (channel) => {
-
     const queue = await channel.assertQueue(
         "auth-service",
         {
@@ -15,32 +16,30 @@ const vendorApplicationSubmitted = async (channel) => {
         "VendorApplicationSubmitted"
     );
 
+    logger.info(
+        { queue: queue.queue },
+        "Vendor application submission consumer registered"
+    );
+
     channel.consume(
         queue.queue,
         async (message) => {
-
             if (!message) return;
 
             try {
-
                 const data = JSON.parse(
                     message.content.toString()
                 );
 
-                const user = await User.findByPk(
-                    data.userId
-                );
+                const user = await User.findByPk(data.userId);
 
                 if (!user) {
-                    console.error(
-                        `User ${data.userId} not found`
+                    logger.error(
+                        { userId: data.userId },
+                        "User not found while processing vendor application"
                     );
 
-                    channel.nack(
-                        message,
-                        false,
-                        false
-                    );
+                    channel.nack(message, false, false);
 
                     return;
                 }
@@ -51,22 +50,18 @@ const vendorApplicationSubmitted = async (channel) => {
 
                 channel.ack(message);
 
-                console.log(
-                    `User ${data.userId} vendor status updated to pending`
+                logger.info(
+                    { userId: data.userId },
+                    "User vendor status updated to pending"
                 );
 
             } catch (error) {
-
-                console.error(
-                    "Error processing VendorApplicationSubmitted:",
-                    error
+                logger.error(
+                    { err: error },
+                    "Error processing VendorApplicationSubmitted"
                 );
 
-                channel.nack(
-                    message,
-                    false,
-                    false
-                );
+                channel.nack(message, false, false);
             }
         }
     );

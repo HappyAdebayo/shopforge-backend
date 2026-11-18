@@ -81,7 +81,7 @@ const userSignupEmailConsumer = async (channel) => {
             "UserSignedUp"
         );
 
-        console.log("Signup email consumer registered for queue: auth-signup-email");
+        logger.info({ queue: queue.queue }, "Signup email consumer registered");
 
         channel.consume(
             queue.queue,
@@ -90,20 +90,26 @@ const userSignupEmailConsumer = async (channel) => {
 
                 try {
                     const data = JSON.parse(message.content.toString());
-                    console.log(`[Email Queue Worker] Processing signup email for ${data.email}...`);
+                    logger.info(
+                        { email: data.email },
+                        "Processing signup email"
+                    );
 
                     const result = await sendWelcomeEmailViaResend({
                         email: data.email,
                         name: data.name
                     });
 
-                    console.log(`[Email Queue Worker] Welcome email successfully dispatched to ${data.email}. Resend ID:`, result?.id);
+                    logger.info(
+                        { email: data.email, resendId: result?.id },
+                        "Welcome email successfully dispatched"
+                    );
 
                     channel.ack(message);
                 } catch (error) {
-                        console.error(
-                            "[Email Queue Worker] Error sending signup email:",
-                            error.message
+                        logger.error(
+                            { err: error },
+                            "Error sending signup email"
                         );
 
                         const status = error.statusCode;
@@ -127,7 +133,10 @@ const userSignupEmailConsumer = async (channel) => {
             }
         );
     } catch (error) {
-        console.warn("[Email Queue Worker] Failed to setup signup email consumer:", error.message);
+        logger.error(
+            { err: error },
+            "Failed to setup signup email consumer"
+        );
     }
 };
 

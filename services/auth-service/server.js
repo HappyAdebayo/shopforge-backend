@@ -1,7 +1,5 @@
-import dotenv from "dotenv";
-
-dotenv.config();
-
+import env from "./src/config/env.js";
+import logger from "./src/config/logger.js";
 import app from "./app.js";
 import sequelize from "./src/config/db.js";
 import "./src/features/auth/auth.model.js";
@@ -15,7 +13,7 @@ import vendorApplicationApproved from "./src/events/consumers/vendorApplicationA
 import userSignupEmailConsumer from "./src/events/consumers/userSignupEmail.consumer.js";
 import processOutboxEvents from "./src/outbox-service/outbox.worker.js";
 
-const PORT = process.env.PORT || 3001;
+const PORT = env.PORT;
 
 /**
  * Publish AdminUserSynced so that notification-service can seed its
@@ -30,7 +28,7 @@ const syncAdminUsersToRabbitMQ = async () => {
         });
 
         if (admins.length === 0) {
-            console.warn("[Auth Startup] No admin users found to sync.");
+            logger.warn("No admin users found to sync");
             return;
         }
 
@@ -38,9 +36,9 @@ const syncAdminUsersToRabbitMQ = async () => {
             admins: admins.map((a) => ({ id: a.id, name: a.name, email: a.email, role: a.role }))
         });
 
-        console.log(`[Auth Startup] Published AdminUserSynced with ${admins.length} admin(s).`);
-    } catch (err) {
-        console.warn("[Auth Startup] Could not publish AdminUserSynced:", err.message);
+        logger.info(`Published AdminUserSynced with ${admins.length} admin(s)`)
+    }  catch (err) {
+        logger.warn({ err }, "Could not publish AdminUserSynced");
     }
 };
 
@@ -48,11 +46,11 @@ const startServer = async () => {
     try {
         await sequelize.authenticate();
 
-        console.log("Database connected");
+        logger.info("Database connected");
 
         await sequelize.sync();
 
-        console.log("Database synchronized");
+        logger.info("Database synchronized");
 
         const channel = await connectRabbitMQ();
 
@@ -73,11 +71,11 @@ const startServer = async () => {
         processOutboxEvents();
 
         app.listen(PORT, () => {
-            console.log(`Auth service running on port ${PORT}`);
+            logger.info(`Auth service is running on port ${PORT}`);
         });
 
     } catch (error) {
-        console.error("Failed to start auth service:", error);
+        logger.error({ err: error }, "Failed to start auth service");
     }
 };
 

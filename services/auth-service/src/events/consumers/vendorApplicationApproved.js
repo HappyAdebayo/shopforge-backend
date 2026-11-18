@@ -1,17 +1,19 @@
+
 import User from "../../features/auth/auth.model.js";
 import retryMessage from "../../utils/retryMessage.js";
 import configureRetryQueues from "../../config/retryQueues.js";
+import logger from "../../config/logger.js";
 
 const vendorApplicationApproved = async (channel) => {
-
     const queue = await channel.assertQueue(
         "auth-vendor-approved",
         {
             durable: true
         }
     );
+
     const { retryQueue, deadLetterQueue } =
-    await configureRetryQueues(channel, queue.queue);
+        await configureRetryQueues(channel, queue.queue);
 
     await channel.bindQueue(
         queue.queue,
@@ -19,26 +21,24 @@ const vendorApplicationApproved = async (channel) => {
         "VendorApplicationApproved"
     );
 
+    logger.info({ queue: queue.queue }, "Vendor approval consumer registered");
+
     channel.consume(
         queue.queue,
         async (message) => {
-
             if (!message) return;
 
             try {
-
                 const data = JSON.parse(
                     message.content.toString()
                 );
 
-                console.log(
-                    "Vendor application approved:",
-                    data
+                logger.info(
+                    { userId: data.userId },
+                    "Vendor application approved event received"
                 );
 
-                const user = await User.findByPk(
-                    data.userId
-                );
+                const user = await User.findByPk(data.userId);
 
                 if (!user) {
                     const error = new Error(`User ${data.userId} not found`);
@@ -62,25 +62,26 @@ const vendorApplicationApproved = async (channel) => {
 
                 channel.ack(message);
 
-                console.log(
-                    `User ${data.userId} is now a vendor`
+                logger.info(
+                    { userId: data.userId },
+                    "User role updated to vendor"
                 );
 
             } catch (error) {
-                    console.error(
-                        "Error processing VendorApplicationApproved:",
-                        error
-                    );
+                logger.error(
+                    { err: error },
+                    "Error processing VendorApplicationApproved"
+                );
 
-                    await retryMessage({
-                        channel,
-                        message,
-                        retryQueue,
-                        deadLetterQueue,
-                        error,
-                        permanent: error.name === "SyntaxError"
-                    });
-                }
+                await retryMessage({
+                    channel,
+                    message,
+                    retryQueue,
+                    deadLetterQueue,
+                    error,
+                    permanent: error.name === "SyntaxError"
+                });
+            }
         }
     );
 };

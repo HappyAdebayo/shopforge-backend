@@ -19,7 +19,9 @@ services:
 
   # Authentication service
   auth-service:
-    build: ./services/auth-service
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
 
     env_file:
       - ./services/auth-service/.env
@@ -39,5 +41,32 @@ services:
     volumes:
       - auth_data:/app/data
 
+
+  # Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+
+    env_file:
+      - ./services/product-service/.env
+
+    environment:
+      PORT: 3003
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      DB_DIALECT: sqlite
+      DB_STORAGE: /app/data/database.sqlite
+
+    ports:
+      - "3003:3003"
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    volumes:
+      - product_data:/app/data
+
 volumes:
   auth_data:
+  product_data:

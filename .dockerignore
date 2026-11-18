@@ -1,0 +1,7 @@
+**/node_modules
+**/.env
+**/.env.*
+.git
+**/database.sqlite*
+**/coverage
+**/*.log

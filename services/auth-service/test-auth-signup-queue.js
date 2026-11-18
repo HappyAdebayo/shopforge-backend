@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import sequelize from "./src/config/db.js";
-import User from "./src/features/auth/auth.model.js";
 import OutboxEvent from "./src/outbox-service/outbox.model.js";
 import authService from "./src/features/auth/auth.service.js";
 

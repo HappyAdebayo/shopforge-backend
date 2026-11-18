@@ -1,4 +1,5 @@
 import { Sequelize } from "sequelize";
+import logger from "./logger.js"
 
 class DatabaseConnection {
     static instance = null;
@@ -8,7 +9,9 @@ class DatabaseConnection {
             DatabaseConnection.instance = new Sequelize({
                 dialect: process.env.DB_DIALECT || "sqlite",
                 storage: process.env.DB_STORAGE || "./database.sqlite",
-                logging: process.env.DB_LOGGING === "true" ? console.log : false,
+                logging: process.env.DB_LOGGING === "true"
+                    ? (message) => logger.debug({ sql: message }, "Database query")
+                    : false,
                 pool: {
                     max: parseInt(process.env.DB_POOL_MAX || "10", 10),
                     min: parseInt(process.env.DB_POOL_MIN || "0", 10),
@@ -25,4 +28,4 @@ class DatabaseConnection {
 const sequelize = DatabaseConnection.getInstance();
 
 export { DatabaseConnection };
-export default sequelize;
+export default sequelize;
